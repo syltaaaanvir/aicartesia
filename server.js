@@ -8,6 +8,38 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
+
+app.get("/api/voices", async (req, res) => {
+  try {
+    const apiKey = process.env.CARTESIA_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "CARTESIA_API_KEY server-এ সেট করা হয়নি।" });
+    const params = new URLSearchParams();
+    params.set("limit", "100");
+    params.append("expand[]", "preview_file_url");
+    const q = String(req.query.q || "").trim();
+    const gender = String(req.query.gender || "").trim();
+    const language = String(req.query.language || "").trim();
+    const startingAfter = String(req.query.starting_after || "").trim();
+    if (q) params.set("q", q.slice(0, 100));
+    if (["masculine", "feminine", "gender_neutral"].includes(gender)) params.set("gender", gender);
+    if (language) params.set("language", language.slice(0, 20));
+    if (startingAfter) params.set("starting_after", startingAfter);
+
+    const upstream = await fetch(`https://api.cartesia.ai/voices?${params.toString()}`, {
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Cartesia-Version": "2026-08-14"
+      }
+    });
+    const payload = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) return res.status(upstream.status).json({ error: "Cartesia Voice Library লোড করা যায়নি।", detail: payload });
+    res.json({ data: payload.data || [], has_more: Boolean(payload.has_more), next_page: payload.next_page || null });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Voice Library লোড করতে server error হয়েছে।" });
+  }
+});
+
 app.post("/api/tts", async (req, res) => {
   try {
     const apiKey = process.env.CARTESIA_API_KEY;
