@@ -40,32 +40,6 @@ app.get("/api/voices", async (req, res) => {
   }
 });
 
-app.post("/api/voice-preview", async (req, res) => {
-  try {
-    const apiKey = process.env.CARTESIA_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "CARTESIA_API_KEY server-এ সেট করা হয়নি।" });
-    const voiceId = String(req.body?.voiceId || "").trim();
-    if (!voiceId) return res.status(400).json({ error: "Voice ID missing" });
-    const upstream = await fetch("https://api.cartesia.ai/tts/bytes", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Cartesia-Version": "2026-03-01", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model_id: "sonic-3.6",
-        transcript: "Hello! This is a preview of this Cartesia voice.",
-        voice: { mode: "id", id: voiceId },
-        output_format: { container: "wav", encoding: "pcm_s16le", sample_rate: 44100 }
-      })
-    });
-    if (!upstream.ok) return res.status(upstream.status).json({ error: "Voice preview failed", detail: (await upstream.text()).slice(0, 800) });
-    res.setHeader("Content-Type", "audio/wav");
-    res.setHeader("Cache-Control", "no-store");
-    res.send(Buffer.from(await upstream.arrayBuffer()));
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Preview server error" });
-  }
-});
-
 app.post("/api/tts", async (req, res) => {
   try {
     const apiKey = process.env.CARTESIA_API_KEY;
